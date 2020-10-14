@@ -6,7 +6,7 @@
   </global>
   <stackpointer register="SP" space="RAM"/>
    <default_proto>
-    <prototype name="__stdcall">
+    <prototype name="__stdcall" extrapop="0" stackshift="0">
 	<input>
 	   <pentry maxsize="1" minsize="1">
           <register name="A"/>
@@ -25,7 +25,6 @@
 	</output>
 	<unaffected>
           <register name="SP"/>
-          <register name="SR"/>
  	</unaffected>
     </prototype>
    </default_proto>
