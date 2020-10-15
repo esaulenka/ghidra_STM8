@@ -112,7 +112,7 @@ macro popdw(val) {
 
 
 #
-#	Sub Constructors
+#	Sub constructors
 #
 
 # immediate values
@@ -128,7 +128,7 @@ offset8: addr	is val8s [ addr = inst_next + val8s; ] { export *:1 addr; }
 
 # 8-bit address (shortmem)
 Addr8B:		val8u		is val8u			{ export *:1 val8u; }
-# Addr8W:	val8u		is val8u			{ export *:2 val8u; }
+Addr8W:		val8u		is val8u			{ export *:2 val8u; }
 Addr8B_2:	val8u		is val8u			{ export *:1 val8u; }
 
 # 16-bit address (longmem)
@@ -166,9 +166,7 @@ Addr24: val24u is val24u { export *:1 val24u; }
 :SBC A, StackAddr8		is op0_8=0x12 & A ; StackAddr8 {
 }
 #-/90	0001 0011	addr8	CPW X/Y,(addr8,SP)	Compare X/Y - operand (16-bit)
-:SUB X, StackAddr8W		is op0_8=0x13 & X ; StackAddr8W {
-}
-:SUB Y, StackAddr8W		is op_prfx=0x90 ; op0_8=0x13 & Y ; StackAddr8W {
+:CPW X_Y, StackAddr8W	is X_Y ... & op0_8=0x13 ; StackAddr8W {
 }
 #-		0001 0100	addr8	AND A,(addr8,SP)	A := A & operand, bitwise and
 :AND A, StackAddr8		is op0_8=0x14 & A ; StackAddr8 {
@@ -267,10 +265,10 @@ Jcond: "H"		is op_prfx=0x90 ; op0_4=0x9	{ local x:1 = CC_V; export x; }		# Branc
 #Jcond: "IL"	is op_prfx=0x90 ; op0_4=0xE	{ local x:1 = ??; export x; }		# TODO Branch if interrupt line is low
 #Jcond: "IH"	is op_prfx=0x90 ; op0_4=0xF	{ local x:1 = ??; export x; }		# TODO Branch if interrupt line is high
 
-:J^Jcond offset8	is Jcond ... & op4_4=0x2 ; offset8 {
+:JR^Jcond offset8	is Jcond ... & op4_4=0x2 ; offset8 {
 	if (Jcond) goto offset8;
 }
-:JA offset8	is op4_4=0x2 & op0_4=0x0 ; offset8 {
+:JRA offset8		is op4_4=0x2 & op0_4=0x0 ; offset8 {
 	goto offset8;
 }
 
@@ -285,9 +283,9 @@ OneOp: StackAddr8		is op4_4=0x0; StackAddr8	{ export StackAddr8; }
 # 	8-bit absolute address
 OneOp: Addr8B			is op4_4=0x3; Addr8B		{ export Addr8B; }
 # 16-bit indirect address
-OneOp72: [val16u]		is op4_4=0x3; val16u		{ }	# TODO 
+OneOp72: [val16u]		is op4_4=0x3; val16u		{ local x:1=0; export x; }	# TODO 
 # 8-bit indirect address of 16-bit address
-OneOp92: [val8u] 		is op4_4=0x3; val8u			{ }	# TODO
+OneOp92: [val8u] 		is op4_4=0x3; val8u			{ local x:1=0; export x; }	# TODO
 # Accumulator
 OneOp: A				is op4_4=0x4 & A			{ export A; }
 # Indexed with 16-bit offset
@@ -432,9 +430,9 @@ TwoOp:	Addr8B		is op4_4=0xB ; Addr8B		{ export Addr8B; }
 # -		1100 opcode	addr16	OP addr16			16-bit absolute address
 TwoOp:	Addr16B		is op4_4=0xC ; Addr16B		{ export Addr16B; }
 # 72	1100 opcode	addr16	OP [addr16]			16-bit indirect address
-# TODO
+TwoOp72: [Addr16W]	is op4_4=0xC ; Addr16W		{ local ptr:3 = zext(Addr16W); export *:1 ptr; }
 # 92	1100 opcode	addr8	OP [addr8]			8-bit indirect address of 16-bit address
-# TODO
+TwoOp92: [Addr8W]	is op4_4=0xC ; Addr8W 		{ local ptr:3 = zext(Addr8W); export *:1 ptr; }
 # -/90	1101 opcode	addr16	OP (addr16,X/Y)		Indexed with 16-bit offset
 # TODO
 # 72	1101 opcode	addr16	OP ([addr16],X)		16-bit indirect + X
@@ -458,7 +456,7 @@ TwoOp:	Addr16B		is op4_4=0xC ; Addr16B		{ export Addr16B; }
 :SBC A, TwoOp		is op0_4=0x2 ... & TwoOp & A {
 }
 # op_prfx	mode 0011	operand		CPW X/Y,operand	Compare X/Y - operand (16 bit); compare Y/X if operand mode is indexed by X/Y (opcodes D3, E3, F3)
-:CPW X, TwoOp		is op0_4=0x3 ... & TwoOp & X {
+:CPW X, TwoOpW		is op0_4=0x3 ... & TwoOpW & X {
 }
 # op_prfx	mode 0100	operand		AND A,operand	A := A & operand, bitwise and
 :AND A, TwoOp		is op0_4=0x4 ... & TwoOp & A {
@@ -484,18 +482,26 @@ TwoOp:	Addr16B		is op4_4=0xC ; Addr16B		{ export Addr16B; }
 # op_prfx	mode 1011	operand		ADD A,operand	A := A + operand
 :ADD A, TwoOp		is op0_4=0xB ... & TwoOp & A {
 }
-# op_prfx	mode 1100	operand		JP operand	Low 16 bits of PC := operand, unconditional jump (modes 2 JP #imm8 and 3 JP addr8 reassigned, see below)
-:JP TwoOp			is op0_4=0xC ... & TwoOp {
+# op_prfx	mode 1100	operand		JP operand		Low 16 bits of PC := operand, unconditional jump (modes 2 JP #imm8 and 3 JP addr8 reassigned, see below)
+:JP TwoOpW			is op0_4=0xC ... & TwoOpW {
+	goto [ TwoOpW ];
 }
 # op_prfx	mode 1101	operand		CALL operand	Push 16-bit PC, low 16 bits of PC := operand (modes 2 CALL #imm8 and 3 CALL addr8 reassigned, see below)
-:CALL TwoOp			is op0_4=0xD ... & TwoOp {
+:CALL TwoOpW		is op0_4=0xD ... & TwoOpW {
+	local pc:2 = inst_next;
+	pushw(pc);
+	call [ TwoOpW ];
 }
 # -/90		mode 1110	operand		LDW X/Y,operand	Load X/Y := operand; load Y/X if operand mode is indexed by X/Y (opcodes DE, EE, FE); use 16 instead of 90 1E for LDW Y,(addr8,SP)
-:LDW X, TwoOp		is op0_4=0xE ... & TwoOp & X {
+:LDW X, TwoOpW		is op0_4=0xE ... & TwoOpW & X {
+	X = TwoOpW;
 }
 # op_prfx	mode 1111	operand		LDW operand,X/Y	Operand := X/Y (16-bit, mode 2 LD #imm8,X reassigned, see below); use 17 instead of 90 1F for LDW (addr8,SP),Y
-:LDW TwoOp, X		is op0_4=0xF ... & TwoOp & X {
+:LDW TwoOpW, X		is op0_4=0xF ... & TwoOpW & X {
+	TwoOpW = X;
 }
+
+
 
 #
 # Reassigned opcodes from two-operand range
@@ -520,7 +526,7 @@ TwoOp:	Addr16B		is op4_4=0xC ; Addr16B		{ export Addr16B; }
 :LDF A, [Addr16DW]		is op_prfx=0x92 ; op0_8=0xBC ; Addr16DW & A {
 }
 # -		1010 1101  soff8	CALLR label				Push 16-bit PC, PC := PC + operand (=CALL #imm8)
-:CALLR offset8			is op0_8=0xAB ; offset8 {
+:CALLR offset8			is op0_8=0xAD ; offset8 {
 }
 # -		1011 1101  addr24	LDF addr24,A			Operand := A (=CALL addr8)
 :LDF Addr24, A			is op0_8=0xBD ; Addr24 & A {
@@ -618,20 +624,26 @@ TwoOp:	Addr16B		is op4_4=0xC ; Addr16B		{ export Addr16B; }
 
 # -/90	1001 0011			LDW X/Y,Y/X	X/Y := Y/X
 :LDW X, Y			is op0_8=0x93 & X & Y {
+	X = Y;
 }
 :LDW Y, X			is op_prfx=0x90 ; op0_8=0x93 & X & Y {
+	Y = X;
 }
 # -/90	1001 0100			LDW SP,X/Y	SP := X/Y
 :LDW SP, X_Y		is X_Y ... & op0_8=0x94 & SP {
+	SP = X_Y;
 }
 # -/90	1001 0101			LD XH/YH,A	XH/YH := A
 :LD XH_YH, A		is XH_YH ... & op0_8=0x95 & A {
+	XH_YH = A;
 }
 # -/90	1001 0110			LDW X/Y,SP	X/Y := SP
 :LDW X_Y, SP		is X_Y ... & op0_8=0x96 & SP {
+	X_Y = SP;
 }
 # -/90	1001 0111			LD XL/YL,A	XL/YL := A
 :LD XL_YL, A		is XL_YL ... & op0_8=0x97 & A {
+	XL_YL = A;
 }
 # -		1001 1000			RCF			Reset (clear) carry flag
 :RCF				is op0_8=0x98 {
