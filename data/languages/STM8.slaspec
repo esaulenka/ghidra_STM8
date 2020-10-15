@@ -44,6 +44,11 @@ define register offset=0x20 size=1 [
 	CC_C	# (bit 0) carry
 ];
 
+# context register to track opcodes prefix
+define register offset=0x100 size=4   contextreg;
+define context contextreg
+	ctx_prefix = (0,7) noflow
+;
 
 
 
@@ -149,8 +154,14 @@ XH_YH: YH	is op_prfx=0x90 ; epsilon & YH { export YH; }
 X_Y_92: X	is op_prfx=0x92 & X { export X; } 
 X_Y_92: Y	is op_prfx=0x91 & Y { export Y; } 
 
-# interrupt vector address
+# full address
 Addr24: val24u is val24u { export *:1 val24u; }
+
+# store prefix in context register
+Prefix:		is op_prfx=0x90 [ ctx_prefix=0x90; ] { }
+Prefix:		is op_prfx=0x91 [ ctx_prefix=0x91; ] { }
+Prefix:		is op_prfx=0x92 [ ctx_prefix=0x92; ] { }
+Prefix:		is op_prfx=0x72 [ ctx_prefix=0x72; ] { }
 
 
 #
@@ -297,24 +308,28 @@ OneOp72: Addr16B		is op4_4=0x5 ; Addr16B		{ export Addr16B; }
 OneOp: (val8u, X)		is op4_4=0x6 & X ; val8u	{ local addr:3 = zext(X) + val8u; export *:1 addr; }
 OneOp90: (val8u, Y)		is op4_4=0x6 & Y ; val8u	{ local addr:3 = zext(Y) + val8u; export *:1 addr; }
 # 16-bit indirect address plus X
-OneOp72: ([val16u], X)	is op4_4=0x6 & X ; val16u	{ }		# TODO
+OneOp72: ([val16u], X)	is op4_4=0x6 & X ; val16u	{ local x:1=0; export x; }		# TODO
 # 8-bit indirect address plus X/Y
-OneOp92: ([val8u], X)	is op4_4=0x6 & X ; val8u	{ }		# TODO
-OneOp91: ([val8u], Y)	is op4_4=0x6 & Y ; val8u	{ }		# TODO
+OneOp92: ([val8u], X)	is op4_4=0x6 & X ; val8u	{ local x:1=0; export x; }		# TODO
+OneOp91: ([val8u], Y)	is op4_4=0x6 & Y ; val8u	{ local x:1=0; export x; }		# TODO
 # Indexed with no offset
 OneOp: (X)				is op4_4=0x7 & X			{ export *:1 X; }
 OneOp90: (Y)			is op4_4=0x7 & Y			{ export *:1 Y; }
 
-
-# one-operand instructions addressing modes (16-bit operations)
-# X/Y register
-#OneOpW: X 				is op4_4=0x5 & X				{ export X; }
-#OneOpW90: Y 			is op4_4=0x5 & Y				{ export Y; }
+OneOpPrfx: OneOp90		is OneOp90 & ctx_prefix=0x90 	{ export OneOp90; }
+OneOpPrfx: OneOp91		is OneOp91 & ctx_prefix=0x91 	{ export OneOp91; }
+OneOpPrfx: OneOp92		is OneOp92 & ctx_prefix=0x92 	{ export OneOp92; }
+OneOpPrfx: OneOp72		is OneOp72 & ctx_prefix=0x72 	{ export OneOp72; }
 
 
 # op_prfx	0 mode 0000	operand		NEG operand	Two's-complement negate
 :NEG OneOp		is op0_4=0x0 ... & OneOp {
 }
+:NEG OneOpPrfx	is Prefix ; op0_4=0x0 ... & OneOpPrfx {
+}
+:NEGW X_Y	is X_Y ... & op0_8=0x50 {
+}
+
 # op_prfx	0 mode 0011	operand		CPL operand	Ones' complement, logical not
 :CPL OneOp		is op0_4=0x3 ... & OneOp {
 }
@@ -442,7 +457,28 @@ TwoOp92: [Addr8W]	is op4_4=0xC ; Addr8W 		{ local ptr:3 = zext(Addr8W); export *
 # -/90	1110 opcode	addr8	OP (addr8,X/Y)		Indexed with 8-bit offset
 # TODO
 # -/90	1111 opcode			OP (X/Y)			Indexed with no offset
-# TODO
+TwoOp: (X)			is op4_4=0xF & X			{ export *:1 X; }
+TwoOp90: (Y)		is op4_4=0xF & Y			{ export *:1 Y; }
+
+
+TwoOpPrfx: TwoOp90		is TwoOp90 & ctx_prefix=0x90 	{ export TwoOp90; }
+#TwoOpPrfx: TwoOp91		is TwoOp91 & ctx_prefix=0x91 	{ export TwoOp91; }
+TwoOpPrfx: TwoOp92		is TwoOp92 & ctx_prefix=0x92 	{ export TwoOp92; }
+TwoOpPrfx: TwoOp72		is TwoOp72 & ctx_prefix=0x72 	{ export TwoOp72; }
+
+
+
+# two-operand instructions addressing modes (16-bit operations)
+
+# -		0001 opcode	addr8	OP (addr8,SP)		Stack-relative operand (see above; opcodes 16, 17, 1C, 1D do not follow pattern)
+TwoOpW:	StackAddr8W	is op4_4=0x1 ; StackAddr8W	{ export StackAddr8W; }
+# -		1010 opcode	imm8	OP #imm8			8-bit immediate operand (forbidden as destination)
+TwoOpW:	Imm16u		is op4_4=0xA ; Imm16u		{ export Imm16u; }
+# -		1011 opcode	addr8	OP addr8			8-bit absolute address (forbidden for jump/call)
+TwoOpW:	Addr8W		is op4_4=0xB ; Addr8W		{ export Addr8W; }
+# -		1100 opcode	addr16	OP addr16			16-bit absolute address
+TwoOpW:	Addr16W		is op4_4=0xC ; Addr16W		{ export Addr16W; }
+# TODO others
 
 
 
@@ -467,9 +503,13 @@ TwoOp92: [Addr8W]	is op4_4=0xC ; Addr8W 		{ local ptr:3 = zext(Addr8W); export *
 # op_prfx	mode 0110	operand		LD A,operand	A := operand (mode 2 LD #imm8,A reassigned, see below)
 :LD A, TwoOp		is op0_4=0x6 ... & TwoOp & A {
 }
+:LD A, TwoOpPrfx	is Prefix ; op0_4=0x6 ... & TwoOpPrfx & A {
+}
+
 # op_prfx	mode 0111	operand		LD operand,A	Operand := A
 :LD TwoOp, A		is op0_4=0x7 ... & TwoOp & A {
 }
+
 # op_prfx	mode 1000	operand		XOR A,operand	A := A ^ operand, exclusive-or
 :XOR A, TwoOp		is op0_4=0x8 ... & TwoOp & A {
 }
