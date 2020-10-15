@@ -68,8 +68,6 @@ define token opcode(8)
 	op0_8 = 	(0, 7)
 	bit1_3 = 	(1, 3)
 	op4_4 =		(4, 7)
-#	mode4_3 =	(4, 6)
-#	op7_1 = 	(7, 7)		
 ;
 define token opcode2(8)
 	val8u = 	(0,7)
@@ -162,11 +160,11 @@ X_Y_92: Y	is ctx_prefix=0x91 & Y { export Y; }
 Addr24: val24u is val24u { export *:1 val24u; }
 
 # store prefix in context register
-:^instruction is ctx_phase=0 & op0_8=0x72 & instruction [ ctx_prefix=0x72; ctx_phase=1;]  { }
-:^instruction is ctx_phase=0 & op0_8=0x90 & instruction [ ctx_prefix=0x90; ctx_phase=1;]  { }
-:^instruction is ctx_phase=0 & op0_8=0x91 & instruction [ ctx_prefix=0x91; ctx_phase=1;]  { }
-:^instruction is ctx_phase=0 & op0_8=0x92 & instruction [ ctx_prefix=0x92; ctx_phase=1;]  { }
-:^instruction is ctx_phase=0 &              instruction [                  ctx_phase=1;]  { }
+:^instruction is ctx_phase=0 & op_prfx=0x72 ; instruction [ ctx_prefix=0x72; ctx_phase=1;]  { }
+:^instruction is ctx_phase=0 & op_prfx=0x90 ; instruction [ ctx_prefix=0x90; ctx_phase=1;]  { }
+:^instruction is ctx_phase=0 & op_prfx=0x91 ; instruction [ ctx_prefix=0x91; ctx_phase=1;]  { }
+:^instruction is ctx_phase=0 & op_prfx=0x92 ; instruction [ ctx_prefix=0x92; ctx_phase=1;]  { }
+:^instruction is ctx_phase=0 &                instruction [                  ctx_phase=1;]  { }
 
 
 
@@ -799,7 +797,7 @@ TwoOpW: (Y)			is ctx_prefix=0x90 & op4_4=0xF & Y				{ export *:2 Y; }
 :CALL TwoOpW		is op0_4=0xD ... & TwoOpW {
 	local pc:2 = inst_next;
 	pushw(pc);
-	call [ TwoOpW ];
+	call TwoOpW;
 }
 # -/90		mode 1110	operand		LDW X/Y,operand	Load X/Y := operand; load Y/X if operand mode is indexed by X/Y (opcodes DE, EE, FE); use 16 instead of 90 1E for LDW Y,(addr8,SP)
 :LDW X, TwoOpW		is op0_4=0xE ... & TwoOpW & X {
