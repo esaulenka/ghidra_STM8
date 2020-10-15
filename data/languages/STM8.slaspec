@@ -16,7 +16,7 @@ define alignment=1;
 define space RAM type=ram_space size=3 default;
 define space register type=register_space size=2;
 
-# warning! this document uses following conventions: byte - 8 bits, word - 16 bits, dword - 24 bits (!!!)
+# this document uses following conventions: byte - 8 bits, word - 16 bits, dword - 24 bits (!!!)
 
 
 #
@@ -34,7 +34,7 @@ define register offset=0x00 size=2 [
 	SP		# stack pointer
 ];
 define register offset=0x10 size=3 [
-	PC	# program counter
+	PC		# program counter
 ];
 # condition code register
 define register offset=0x20 size=1 [
@@ -484,7 +484,7 @@ IdxOp: StackAddr8W	is op4_4=0xF ; StackAddr8W	{ export StackAddr8W; }
 :EXGW X, Y			is op0_8=0x51 & X & Y {
 }
 # -		0110 0001			EXG A,YL		Exchange A with Y (low half)
-:EXG A, YL			is op0_8=61 & A & YL {
+:EXG A, YL			is op0_8=0x61 & A & YL {
 }
 # -/90	0000 0010			RLWA X/Y		Rotate word left through A: 8-bit left rotate of 24-bit concatenation of X/Y and A; (A:X) := (X:A)
 :RLWA X_Y			is op0_8=0x02 & X_Y {
@@ -496,7 +496,7 @@ IdxOp: StackAddr8W	is op4_4=0xF ; StackAddr8W	{ export StackAddr8W; }
 :MUL X_Y, A			is op0_8=0x42 & X_Y & A {
 }
 # -		0101 0010	imm8	SUBW SP,#imm	SP := SP - imm8
-:SUBW SP, Imm8u	is op0_8=0x52 & SP ; Imm8u {
+:SUBW SP, Imm8u		is op0_8=0x52 & SP ; Imm8u {
 }
 # -/90	0110 0010			DIV X/Y,A		Divide X/Y by A; 16-bit quotient in X/Y, remainder in A
 :DIV X_Y, A			is op0_8=0x62 & X_Y & A {	
@@ -798,6 +798,7 @@ TwoOpW: (Y)			is ctx_prefix=0x90 & op4_4=0xF & Y				{ export *:2 Y; }
 :LDW X, TwoOpW		is op0_4=0xE ... & TwoOpW & X {
 	X = TwoOpW;
 	# flags!
+	# FIXME rewrite pattern!!!
 }
 # prefix	mode 1111	operand		LDW operand,X/Y	Operand := X/Y (16-bit, mode 2 LD #imm8,X reassigned, see below); use 17 instead of 90 1F for LDW (addr8,SP),Y
 :LDW TwoOpW, X		is op0_4=0xF ... & TwoOpW & X {
