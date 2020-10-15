@@ -659,9 +659,14 @@ OneOpW: Y			is ctx_prefix=0x90 & op4_4=0x5 & Y			{ export Y; }
 }
 # -		1010 1100  addr24	JPF addr24				PC := addr24 (=JP #imm8)
 :JPF Addr24				is op0_8=0xAC ; Addr24 {
+	PC = & Addr24;
+	goto Addr24;
 }
 # 92	1010 1100  addr16	JPF [addr16]			Indirect far jump; address is of 24-bit pointer
 :JPF [Addr16DW]			is op_prfx=0x92 ; op0_8=0xAC ; Addr16DW {
+	local addr:3 = Addr16DW;
+	PC = addr;
+	goto [addr];
 }
 # -		1011 1100  addr24	LDF A,addr24			Load far (=JP addr8)
 :LDF A, Addr24			is op0_8=0xBC ; Addr24 & A {
@@ -671,6 +676,8 @@ OneOpW: Y			is ctx_prefix=0x90 & op4_4=0x5 & Y			{ export Y; }
 }
 # -		1010 1101  soff8	CALLR label				Push 16-bit PC, PC := PC + operand (=CALL #imm8)
 :CALLR offset8			is op0_8=0xAD ; offset8 {
+	local pc:2 = inst_next; pushw(pc);
+	call offset8;
 }
 # -		1011 1101  addr24	LDF addr24,A			Operand := A (=CALL addr8)
 :LDF Addr24, A			is op0_8=0xBD ; Addr24 & A {
