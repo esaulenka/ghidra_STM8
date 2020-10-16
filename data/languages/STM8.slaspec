@@ -724,31 +724,37 @@ TwoOp:	(Y)			is prefix=0x90 & op4_4=0xF & Y			{ export *:1 Y; }
 # two-operand instructions addressing modes (16-bit operations)
 
 # -		0001 opcode	addr8	OP (addr8,SP)		Stack-relative operand
-TwoOpW:	StackAddr8W	is prefix=0x00 & op4_4=0x1 ; StackAddr8W	{ export StackAddr8W; }
+TwoOpW00:	StackAddr8W	is op4_4=0x1 ; StackAddr8W	{ export StackAddr8W; }
 # -		1010 opcode	imm8	OP #imm8			8-bit immediate operand (forbidden as destination)
-TwoOpW:	Imm16u		is prefix=0x00 & op4_4=0xA ; Imm16u			{ export Imm16u; }
+TwoOpW00:	Imm16u		is op4_4=0xA ; Imm16u		{ export Imm16u; }
 # -		1011 opcode	addr8	OP addr8			8-bit absolute address (forbidden for jump/call)
-TwoOpW:	Addr8W		is prefix=0x00 & op4_4=0xB ; Addr8W			{ export Addr8W; }
+TwoOpW00:	Addr8W		is op4_4=0xB ; Addr8W		{ export Addr8W; }
 # -		1100 opcode	addr16	OP addr16			16-bit absolute address
-TwoOpW:	Addr16W		is prefix=0x00 & op4_4=0xC ; Addr16W		{ export Addr16W; }
+TwoOpW00:	Addr16W		is op4_4=0xC ; Addr16W		{ export Addr16W; }
 # 72	1100 opcode	addr16	OP [addr16]			16-bit indirect address
-TwoOpW:	[Addr16W]	is prefix=0x72 & op4_4=0xC ; Addr16W		{ local ptr:3 = zext(Addr16W); export *:2 ptr; }
+TwoOpW72:	[Addr16W]	is op4_4=0xC ; Addr16W		{ local ptr:3 = zext(Addr16W); export *:2 ptr; }
 # 92	1100 opcode	addr8	OP [addr8]			8-bit indirect address of 16-bit address
-TwoOpW:	[Addr8W]	is prefix=0x92 & op4_4=0xC ; Addr8W 		{ local ptr:3 = zext(Addr8W); export *:2 ptr; }
+TwoOpW92:	[Addr8W]	is op4_4=0xC ; Addr8W 		{ local ptr:3 = zext(Addr8W); export *:2 ptr; }
 # -/90	1101 opcode	addr16	OP (addr16,X/Y)		Indexed with 16-bit offset
-TwoOpW: (val16u, X)	is prefix=0x00 & op4_4=0xD & X; val16u		{ local addr:3 = zext(X) + val16u; export *:2 addr; }
-TwoOpW: (val16u, Y)	is prefix=0x90 & op4_4=0xD & Y; val16u		{ local addr:3 = zext(Y) + val16u; export *:2 addr; }
+TwoOpW00: (val16u, X)	is op4_4=0xD & X; val16u	{ local addr:3 = zext(X) + val16u; export *:2 addr; }
+TwoOpW90: (val16u, Y)	is op4_4=0xD & Y; val16u	{ local addr:3 = zext(Y) + val16u; export *:2 addr; }
 # 72	1101 opcode	addr16	OP ([addr16],X)		16-bit indirect + X
-TwoOpW: ([Addr16W], X) is prefix=0x72 & op4_4=0xD & X; Addr16W	{ local addr:3 = zext(X) + zext(Addr16W); export *:2 addr;  }
+TwoOpW72: ([Addr16W], X) is op4_4=0xD & X; Addr16W	{ local addr:3 = zext(X) + zext(Addr16W); export *:2 addr;  }
 # 92/91	1101 opcode	addr16	OP ([addr8],X/Y)	8-bit indirect + X/Y
-TwoOpW: ([Addr8W], X) is prefix=0x92 & op4_4=0xD & X; Addr8W	{ local addr:3 = zext(X) + zext(Addr8W); export *:2 addr;  }
-TwoOpW: ([Addr8W], Y) is prefix=0x91 & op4_4=0xD & Y; Addr8W	{ local addr:3 = zext(Y) + zext(Addr8W); export *:2 addr;  }
+TwoOpW92: ([Addr8W], X) is op4_4=0xD & X; Addr8W	{ local addr:3 = zext(X) + zext(Addr8W); export *:2 addr;  }
+TwoOpW91: ([Addr8W], Y) is op4_4=0xD & Y; Addr8W	{ local addr:3 = zext(Y) + zext(Addr8W); export *:2 addr;  }
 # -/90	1110 opcode	addr8	OP (addr8,X/Y)		Indexed with 8-bit offset
-TwoOpW: (val8u, X)	is prefix=0x00 & op4_4=0xE & X ; val8u		{ local addr:3 = zext(X) + val8u; export *:2 addr; }
-TwoOpW: (val8u, Y)	is prefix=0x90 & op4_4=0xE & Y ; val8u		{ local addr:3 = zext(Y) + val8u; export *:2 addr; }
+TwoOpW00: (val8u, X)	is op4_4=0xE & X ; val8u	{ local addr:3 = zext(X) + val8u; export *:2 addr; }
+TwoOpW90: (val8u, Y)	is op4_4=0xE & Y ; val8u	{ local addr:3 = zext(Y) + val8u; export *:2 addr; }
 # -/90	1111 opcode			OP (X/Y)			Indexed with no offset
-TwoOpW: (X)			is prefix=0x00 & op4_4=0xF & X				{ export *:2 X; }
-TwoOpW: (Y)			is prefix=0x90 & op4_4=0xF & Y				{ export *:2 Y; }
+TwoOpW00: (X)			is op4_4=0xF & X			{ export *:2 X; }
+TwoOpW90: (Y)			is op4_4=0xF & Y			{ export *:2 Y; }
+
+TwoOpW:	TwoOpW00 is prefix=0x00 & TwoOpW00 { export TwoOpW00; }
+TwoOpW:	TwoOpW72 is prefix=0x72 & TwoOpW72 { export TwoOpW72; }
+TwoOpW:	TwoOpW90 is prefix=0x90 & TwoOpW90 { export TwoOpW90; }
+TwoOpW:	TwoOpW91 is prefix=0x91 & TwoOpW91 { export TwoOpW91; }
+TwoOpW:	TwoOpW92 is prefix=0x92 & TwoOpW92 { export TwoOpW92; }
 
 
 # prefix	mode 0000	operand		SUB A,operand	A := A - operand
@@ -760,9 +766,7 @@ TwoOpW: (Y)			is prefix=0x90 & op4_4=0xF & Y				{ export *:2 Y; }
 # prefix	mode 0010	operand		SBC A,operand	A := A - operand - C subtract with borrow
 :SBC A, TwoOp		is op0_4=0x2 ... & TwoOp & A {
 }
-# prefix	mode 0011	operand		CPW X/Y,operand	Compare X/Y - operand (16 bit); compare Y/X if operand mode is indexed by X/Y (opcodes D3, E3, F3)
-:CPW X, TwoOpW		is op0_4=0x3 ... & TwoOpW & X {
-}
+
 # prefix	mode 0100	operand		AND A,operand	A := A & operand, bitwise and
 :AND A, TwoOp		is op0_4=0x4 ... & TwoOp & A {
 }
@@ -799,15 +803,38 @@ TwoOpW: (Y)			is prefix=0x90 & op4_4=0xF & Y				{ export *:2 Y; }
 	pushw(pc);
 	call TwoOpW;
 }
-# -/90		mode 1110	operand		LDW X/Y,operand	Load X/Y := operand; load Y/X if operand mode is indexed by X/Y (opcodes DE, EE, FE); use 16 instead of 90 1E for LDW Y,(addr8,SP)
-:LDW X_Y, TwoOpW		is op0_4=0xE ... & TwoOpW & X_Y {
-	X = TwoOpW;
+
+# CPW, LDW X/Y is a special case. Prefix modifies both operands
+TwoOpLDW:	TwoOpW00 		is (prefix=0x00 | prefix=0x90) & TwoOpW00	{ export TwoOpW00; }
+TwoOpLDW:	TwoOpW72 		is prefix=0x72 & TwoOpW72					{ export TwoOpW72; }
+TwoOpLDW:	TwoOpW91 		is prefix=0x91 & TwoOpW91					{ export TwoOpW91; }
+TwoOpLDW:	TwoOpW92 		is prefix=0x92 & TwoOpW92					{ export TwoOpW92; }
+
+X_Y_LDW:	X				is (prefix=0x00 | prefix=0x92 | prefix=0x72) & X  { export X; } 
+X_Y_LDW:	Y				is (prefix=0x90 | prefix=0x91)               & Y  { export Y; } 
+
+Y_X_LDW:	Y				is (prefix=0x00 | prefix=0x92 | prefix=0x72) & Y  { export Y; } 
+Y_X_LDW:	X				is (prefix=0x90 | prefix=0x91)               & X  { export X; } 
+
+# prefix	mode 0011	operand		CPW X/Y,operand	Compare X/Y - operand (16 bit); compare Y/X if operand mode is indexed by X/Y (opcodes D3, E3, F3)
+:CPW X_Y_LDW, TwoOpLDW		is (op0_4=0x3 & (op0_8=0x13 | op0_8=0xA3 | op0_8=0xB3 | op0_8=0xC3))... & TwoOpLDW & X_Y_LDW {
+}
+:CPW Y_X_LDW, TwoOpLDW		is (op0_4=0x3 & (op0_8=0xD3 | op0_8=0xE3 | op0_8=0xF3))... & TwoOpLDW & Y_X_LDW {
+}
+
+# -/90		mode 1110	operand		LDW X/Y,operand	Load X/Y := operand; use 16 instead of 90 1E for LDW Y,(addr8,SP)
+# Error in wiki?? load Y/X if operand mode is indexed by X/Y (opcodes DE, EE, FE)
+:LDW X_Y_LDW, TwoOpLDW		is op0_4=0xE ... & TwoOpLDW & X_Y_LDW {
+	X_Y_LDW = TwoOpLDW;
 	# flags!
-	# FIXME rewrite pattern!!!
 }
 # prefix	mode 1111	operand		LDW operand,X/Y	Operand := X/Y (16-bit, mode 2 LD #imm8,X reassigned, see below); use 17 instead of 90 1F for LDW (addr8,SP),Y
-:LDW TwoOpW, X		is op0_4=0xF ... & TwoOpW & X {
-	TwoOpW = X;
+:LDW TwoOpLDW, X_Y_LDW		is (op0_4=0xF & (op0_8=0x1F | op0_8=0xBF | op0_8=0xCF))... & TwoOpLDW & X_Y_LDW {
+	TwoOpLDW = X_Y_LDW;
+	# flags!
+}
+:LDW TwoOpLDW, Y_X_LDW		is (op0_4=0xF & (op0_8=0xDF | op0_8=0xEF | op0_8=0xFF))... & TwoOpLDW & Y_X_LDW {
+	TwoOpLDW = Y_X_LDW;
 	# flags!
 }
 
