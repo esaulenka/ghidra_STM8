@@ -360,7 +360,7 @@ define pcodeop __WaitForEvent;
 }
 
 # -/90	1001 0011			LDW X/Y,Y/X	X/Y := Y/X
-:LDW X, Y			is op0_8=0x93 & X & Y {
+:LDW X, Y			is Pre00 & op0_8=0x93 & X & Y {
 	X = Y;
 }
 :LDW Y, X			is Pre90 & op0_8=0x93 & X & Y {
@@ -475,14 +475,15 @@ define pcodeop __Nop;
 :ADD A, StackAddr8		is Pre00 & op0_8=0x1B & A ; StackAddr8 {
 	add(A, StackAddr8);
 }
-#-		0001 1110	addr8	LDW X,(addr8,SP)	X := operand
-:LDW X, StackAddr8W		is Pre00 & op0_8=0x1E & X ; StackAddr8W {
-		load(X, StackAddr8W);
-}
-#-		0001 1111	addr8	LDW (addr8,SP),X	Operand := X
-:LDW StackAddr8W, X		is Pre00 & op0_8=0x1F & X ; StackAddr8W {
-	load(StackAddr8W, X);
-}
+# implemented as a common case (see below)
+##-		0001 1110	addr8	LDW X,(addr8,SP)	X := operand
+#:LDW X, StackAddr8W		is Pre00 & op0_8=0x1E & X ; StackAddr8W {
+#		load(X, StackAddr8W);
+#}
+##-		0001 1111	addr8	LDW (addr8,SP),X	Operand := X
+#:LDW StackAddr8W, X		is Pre00 & op0_8=0x1F & X ; StackAddr8W {
+#	load(StackAddr8W, X);
+#}
 
 
 #####################################################
@@ -994,6 +995,7 @@ TwoOpWxx: (val8u, X_Y)	is op4_4=0xE & X_Y ; val8u			{ local addr:3 = zext(X_Y) +
 # -/90	1111 opcode			OP (X/Y)			Indexed with no offset
 TwoOpWxx: (X_Y)			is op4_4=0xF & X_Y					{ export *:2 X_Y; }
 
+
 TwoOpW: TwoOpW00 is Pre00 & TwoOpW00 { export TwoOpW00; }
 TwoOpW: TwoOpW92 is Pre92 & TwoOpW92 { export TwoOpW92; }
 TwoOpW: TwoOpWxx is         TwoOpWxx { export TwoOpWxx; }
@@ -1058,41 +1060,59 @@ TwoOpW: TwoOpWxx is         TwoOpWxx { export TwoOpWxx; }
 }
 
 # CPW, LDW X/Y is a special case. Prefix modifies both operands
-TwoOpLDW:	TwoOpW00	is (Pre00 | Pre90) & TwoOpW00	{ export TwoOpW00; }
-TwoOpLDW:	TwoOpW92	is (Pre92 | Pre91) & TwoOpW92	{ export TwoOpW92; }
-TwoOpLDW:	TwoOpWxx	is                   TwoOpWxx	{ export TwoOpWxx; }
+TwoOpLDW:	TwoOpW00	is (ctx_prefix=0x00 | ctx_prefix=0x90) & TwoOpW00	{ export TwoOpW00; }
+TwoOpLDW:	TwoOpW92	is (ctx_prefix=0x92 | ctx_prefix=0x91) & TwoOpW92	{ export TwoOpW92; }
+TwoOpLDW:	TwoOpWxx	is										 TwoOpWxx	{ export TwoOpWxx; }
 
-X_Y_LDW:	X			is (Pre00 | Pre92 | Pre72) & X  { export X; }
-X_Y_LDW:	Y			is (Pre90 | Pre91)         & Y  { export Y; }
+X_Y_LDW:	X			is (ctx_prefix=0x00 | ctx_prefix=0x92 | ctx_prefix=0x72) & X	{ export X; }
+X_Y_LDW:	Y			is (ctx_prefix=0x90 | ctx_prefix=0x91)					 & Y	{ export Y; }
 
-Y_X_LDW:	Y			is (Pre00 | Pre92 | Pre72) & Y  { export Y; }
-Y_X_LDW:	X			is (Pre90 | Pre91)         & X  { export X; }
+Y_X_LDW:	Y			is (ctx_prefix=0x00 | ctx_prefix=0x92 | ctx_prefix=0x72) & Y	{ export Y; }
+Y_X_LDW:	X			is (ctx_prefix=0x90 | ctx_prefix=0x91)					 & X	{ export X; }
+
+
+# due strange restriction in sleigh compiler, X_Y-indexed operands should be described separately
+# indexed without offset
+MemIdxNoOff:		(X)				is Pre00 & X			{ local addr:3 = zext(X); export *:2 addr; }
+MemIdxNoOff:		(Y)				is Pre90 & Y			{ local addr:3 = zext(Y); export *:2 addr; }
+# indexed with 8-bit offset
+MemIdxShortOff:		(val8u, X)		is Pre00 & val8u & X	{ local addr:3 = zext(X) + val8u; export *:2 addr; }
+MemIdxShortOff:		(val8u, Y)		is Pre90 & val8u & Y	{ local addr:3 = zext(Y) + val8u; export *:2 addr; }
+# indexed with 16-bit offset
+MemIdxLongOff:		(val16u, X)		is Pre00 & val16u & X	{ local addr:3 = zext(X) + val16u; export *:2 addr; }
+MemIdxLongOff:		(val16u, Y)		is Pre90 & val16u & Y	{ local addr:3 = zext(Y) + val16u; export *:2 addr; }
+# indirect with 8-bit pointer address
+MemIndirectShort:	([Addr8W], X)	is Pre92 & Addr8W & X	{ local addr:3 = zext(X) + zext(Addr8W); export *:2 addr;  }
+MemIndirectShort:	([Addr8W], Y)	is Pre91 & Addr8W & Y	{ local addr:3 = zext(Y) + zext(Addr8W); export *:2 addr;  }
+# indirect with 16-bit pointer address
+MemIndirectLong:	([Addr16W], X)	is Pre72 & Addr16W & X	{ local addr:3 = zext(X) + zext(Addr16W); export *:2 addr;  }
 
 # prefix	mode 0011	operand		CPW X/Y,operand	Compare X/Y - operand (16 bit); compare Y/X if operand mode is indexed by X/Y (opcodes D3, E3, F3)
-:CPW X_Y_LDW, TwoOpLDW		is (op0_8=0x13 | op0_8=0xA3 | op0_8=0xB3 | op0_8=0xC3)... & TwoOpLDW & X_Y_LDW {
-	compare(X_Y_LDW, TwoOpLDW);
-}
-:CPW Y_X_LDW, TwoOpLDW		is (op0_8=0xD3 | op0_8=0xE3 | op0_8=0xF3)... & TwoOpLDW & Y_X_LDW {
-	compare(Y_X_LDW, TwoOpLDW);
-}
+:CPW X_Y_LDW, TwoOpLDW		is (op0_8=0x13 | op0_8=0xA3 | op0_8=0xB3 | op0_8=0xC3)... & TwoOpLDW & X_Y_LDW { compare(X_Y_LDW, TwoOpLDW); }
+#:CPW Y_X_LDW, TwoOpLDW		is (op0_8=0xD3 | op0_8=0xE3 | op0_8=0xF3)...              & TwoOpLDW & Y_X_LDW { compare(Y_X_LDW, TwoOpLDW); }
+:CPW Y_X_LDW, MemIdxNoOff		is op0_8=0xF3 & Y_X_LDW & MemIdxNoOff		{ compare(Y_X_LDW, MemIdxNoOff); }
+:CPW Y_X_LDW, MemIdxShortOff	is op0_8=0xE3 & Y_X_LDW ; MemIdxShortOff	{ compare(Y_X_LDW, MemIdxShortOff); }
+:CPW Y_X_LDW, MemIdxLongOff		is op0_8=0xD3 & Y_X_LDW ; MemIdxLongOff		{ compare(Y_X_LDW, MemIdxLongOff); }
+:CPW Y_X_LDW, MemIndirectShort	is op0_8=0xD3 & Y_X_LDW ; MemIndirectShort	{ compare(Y_X_LDW, MemIndirectShort); }
+:CPW Y_X_LDW, MemIndirectLong	is op0_8=0xD3 & Y_X_LDW ; MemIndirectLong	{ compare(Y_X_LDW, MemIndirectLong); }
 
 # -/90		mode 1110	operand		LDW X/Y,operand	Load X/Y := operand; use 16 instead of 90 1E for LDW Y,(addr8,SP)
-# Error in wiki?? load Y/X if operand mode is indexed by X/Y (opcodes DE, EE, FE)
-:LDW X_Y_LDW, TwoOpLDW		is op0_4=0xE ... & TwoOpLDW & X_Y_LDW {
-	load(X_Y_LDW, TwoOpLDW);
-}
+#:LDW X_Y_LDW, TwoOpLDW		is op0_4=0xE ... & TwoOpLDW & X_Y_LDW	{ load(X_Y_LDW, TwoOpLDW); }
+:LDW X_Y_LDW, TwoOpLDW		is (op0_8=0x1E | op0_8=0xAE | op0_8=0xBE | op0_8=0xCE)... & TwoOpLDW & X_Y_LDW	{ load(X_Y_LDW, TwoOpLDW); }
+:LDW X_Y_LDW, MemIdxNoOff		is op0_8=0xFE & X_Y_LDW & MemIdxNoOff		{ load(X_Y_LDW, MemIdxNoOff); }
+:LDW X_Y_LDW, MemIdxShortOff	is op0_8=0xEE & X_Y_LDW ; MemIdxShortOff	{ load(X_Y_LDW, MemIdxShortOff); }
+:LDW X_Y_LDW, MemIdxLongOff		is op0_8=0xDE & X_Y_LDW ; MemIdxLongOff		{ load(X_Y_LDW, MemIdxLongOff); }
+:LDW X_Y_LDW, MemIndirectShort	is op0_8=0xDE & X_Y_LDW ; MemIndirectShort	{ load(X_Y_LDW, MemIndirectShort); }
+:LDW X_Y_LDW, MemIndirectLong	is op0_8=0xDE & X_Y_LDW ; MemIndirectLong	{ load(X_Y_LDW, MemIndirectLong); }
+
 ## prefix	mode 1111	operand		LDW operand,X/Y	Operand := X/Y (16-bit, mode 2 LD #imm8,X reassigned, see below); use 17 instead of 90 1F for LDW (addr8,SP),Y
-:LDW TwoOpLDW, X_Y_LDW		is (op0_8=0x1F | op0_8=0xBF | op0_8=0xCF)... & TwoOpLDW & X_Y_LDW {
-	load(TwoOpLDW, X_Y_LDW);
-}
-:LDW TwoOpLDW, Y_X_LDW		is (op0_8=0xDF | op0_8=0xEF | op0_8=0xFF)... & TwoOpLDW & Y_X_LDW {
-	load(TwoOpLDW, Y_X_LDW);
-}
+:LDW TwoOpLDW, X_Y_LDW		is (op0_8=0x1F | op0_8=0xBF | op0_8=0xCF)... & TwoOpLDW & X_Y_LDW { load(TwoOpLDW, X_Y_LDW); }
+#:LDW TwoOpLDW, Y_X_LDW		is (op0_8=0xDF | op0_8=0xEF | op0_8=0xFF)... & TwoOpLDW & Y_X_LDW { load(TwoOpLDW, Y_X_LDW); }
+:LDW MemIdxShortOff, Y_X_LDW	is op0_8=0xEF & Y_X_LDW ; MemIdxShortOff	{ load(MemIdxShortOff, Y_X_LDW); }
+:LDW MemIdxNoOff, Y_X_LDW		is op0_8=0xFF & Y_X_LDW & MemIdxNoOff		{ load(MemIdxNoOff, Y_X_LDW); }
+:LDW MemIdxLongOff, Y_X_LDW		is op0_8=0xDF & Y_X_LDW ; MemIdxLongOff		{ load(MemIdxLongOff, Y_X_LDW); }
+:LDW MemIndirectShort, Y_X_LDW	is op0_8=0xDF & Y_X_LDW ; MemIndirectShort	{ load(MemIndirectShort, Y_X_LDW); }
+:LDW MemIndirectLong, Y_X_LDW	is op0_8=0xDF & Y_X_LDW ; MemIndirectLong	{ load(MemIndirectLong, Y_X_LDW); }
 
 
-# tests
-#Xop:  X		is X { export X; }
-#Xop2: (X)	is X { export *:1 X; }
-#
-#:TEST05 Xop2, Xop 	is op0_8=0x05 & Xop2 & Xop { }
-#:TEST71 Xop			is op0_8=0x71 & Xop2 & Xop { }
+
