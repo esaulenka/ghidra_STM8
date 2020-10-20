@@ -6,10 +6,21 @@
             size="24"
             variant="default"
             version="0.1"
-            slafile="STM8.sla"
+            slafile="STM8_large.sla"
             processorspec="STM8.pspec"
             id="STM8:BE:24:default">
-    <description>STM8</description>
+    <description>STM8 (large memory model)</description>
+    <compiler name="default" spec="STM8.cspec" id="default"/>
+  </language>
+  <language processor="STM8"
+            endian="big"
+            size="16"
+            variant="default"
+            version="0.1"
+            slafile="STM8_medium.sla"
+            processorspec="STM8.pspec"
+            id="STM8:BE:16:default">
+    <description>STM8 (medium memory model)</description>
     <compiler name="default" spec="STM8.cspec" id="default"/>
   </language>
 </language_definitions>
