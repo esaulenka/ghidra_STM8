@@ -715,8 +715,8 @@ OneOp: [Addr8W] 	is Pre92 & op4_4=0x3; Addr8W		{ local addr:3 = zext(Addr8W); ex
 # -		0100 opcode	-		OP A				Accumulator
 OneOp: A			is Pre00 & op4_4=0x4 & A			{ export A; }
 # 72/90	0100 opcode	addr16	OP (addr16,X/Y)		Indexed with 16-bit offset
-OneOp: (val16u, X)	is Pre72 & op4_4=0x4 & X; val16u	{ local addr:3 = zext(X) + val16u; export *:1 addr; }
-OneOp: (val16u, Y)	is Pre90 & op4_4=0x4 & Y; val16u	{ local addr:3 = zext(Y) + val16u; export *:1 addr; }
+OneOp: (Addr16B, X)	is Pre72 & op4_4=0x4 & X; Addr16B	{ local addr:3 = zext(X) + &Addr16B; export *:1 addr; }
+OneOp: (Addr16B, Y)	is Pre90 & op4_4=0x4 & Y; Addr16B	{ local addr:3 = zext(Y) + &Addr16B; export *:1 addr; }
 # 72	0101 opcode	addr16	OP addr16			16-bit address
 OneOp: Addr16B		is Pre72 & op4_4=0x5 ; Addr16B		{ export Addr16B; }
 # -/90	0110 opcode	addr8	OP (addr8,X/Y)		8-bit address plus X/Y
@@ -773,13 +773,13 @@ OneOpW: X_Y			is           op4_4=0x5 & X_Y		{ export X_Y; }
 
 # prefix	0 mode 0110	operand		RRC operand	Rotate right through carry, (operand:C) := (C:operand)
 :RRC OneOp		is op0_4=0x6 ... & OneOp {
-	local msb:1 = CC_C << 8;
+	local msb:1 = CC_C << 7;
 	CC_C = (OneOp & 0x01) != 0;
 	OneOp = msb | (OneOp >> 1);
 	flagNZ(OneOp);
 }
 :RRCW OneOpW	is op0_4=0x6 & OneOpW {
-	local msb:2 = zext(CC_C) << 16;
+	local msb:2 = zext(CC_C) << 15;
 	CC_C = (OneOpW & 0x01) != 0;
 	OneOpW = msb | (OneOpW >> 1);
 	flagNZ(OneOpW);
@@ -959,7 +959,7 @@ TwoOp:	[Addr16W]	is Pre72 & op4_4=0xC ; Addr16W			{ local ptr:3 = zext(Addr16W);
 # 92	1100 opcode	addr8	OP [addr8]			8-bit indirect address of 16-bit address
 TwoOp:	[Addr8W]	is Pre92 & op4_4=0xC ; Addr8W 			{ local ptr:3 = zext(Addr8W); export *:1 ptr; }
 # -/90	1101 opcode	addr16	OP (addr16,X/Y)		Indexed with 16-bit offset
-TwoOp:	(val16u, X_Y)	is op4_4=0xD & X_Y; val16u			{ local addr:3 = zext(X_Y) + val16u; export *:1 addr; }
+TwoOp:	(Addr16B, X_Y)	is op4_4=0xD & X_Y; Addr16B			{ local addr:3 = zext(X_Y) + &Addr16B; export *:1 addr; }
 # 72	1101 opcode	addr16	OP ([addr16],X)		16-bit indirect + X
 TwoOp:	([Addr16W], X) is Pre72 & op4_4=0xD & X; Addr16W	{ local addr:3 = zext(X) + zext(Addr16W); export *:1 addr;  }
 # 92/91	1101 opcode	addr16	OP ([addr8],X/Y)	8-bit indirect + X/Y
@@ -1049,14 +1049,14 @@ TwoOpW: TwoOpWxx is         TwoOpWxx { export TwoOpWxx; }
 	add(A, TwoOp);
 }
 # prefix	mode 1100	operand		JP operand		Low 16 bits of PC := operand, unconditional jump (modes 2 JP #imm8 and 3 JP addr8 reassigned, see below)
-:JP TwoOpW			is op0_4=0xC ... & TwoOpW {
-	goto [ TwoOpW ];
+:JP TwoOp			is op0_4=0xC ... & TwoOp {
+	goto TwoOp;
 }
 # prefix	mode 1101	operand		CALL operand	Push 16-bit PC, low 16 bits of PC := operand (modes 2 CALL #imm8 and 3 CALL addr8 reassigned, see below)
-:CALL TwoOpW		is op0_4=0xD ... & TwoOpW {
+:CALL TwoOp		is op0_4=0xD ... & TwoOp {
 	local pc:2 = inst_next;
 	pushw(pc);
-	call TwoOpW;
+	call TwoOp;
 }
 
 # CPW, LDW X/Y is a special case. Prefix modifies both operands
