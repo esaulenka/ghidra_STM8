@@ -124,28 +124,30 @@ macro unpack_flags(cc) {
 # commonly used operations
 
 macro pushb(val) {
-	SP = SP - 1;
 	*:1 SP = val;
+	SP = SP - 1;
 }
 macro popb(val) {
-	val = *:1 SP;
 	SP = SP + 1;
+	val = *:1 SP;
 }
 macro pushw(val) {
+	*:2 (SP - 1) = val;
 	SP = SP - 2;
-	*:2 SP = val;
+#	pushb(val[0,8]);	# sometimes it work better, sometimes not
+#	pushb(val[8,8]);
 }
 macro popw(val) {
-	val = *:2 SP;
 	SP = SP + 2;
+	val = *:2 (SP - 1);
 }
 macro pushdw(val) {
+	*:3 (SP - 2)= val;
 	SP = SP - 3;
-	*:3 SP = val;
 }
 macro popdw(val) {
-	val = *:3 SP;
 	SP = SP + 3;
+	val = *:3 (SP - 2);
 }
 
 macro exchange(a, b) {
@@ -332,7 +334,8 @@ define pcodeop __DebugBreak;
 }
 # 92	1000 1101	addr16	CALLF [addr16]	Indirect far call; address is of 24-bit pointer
 :CALLF [Addr16DW]	is Pre92 & op0_8=0x8D ; Addr16DW {
-	pushdw(PC);
+	local pc:3 = inst_next;
+	pushdw(pc);
 	call Addr16DW;
 }
 # -		1000 1110			HALT		Halt processor and clocks
@@ -404,11 +407,11 @@ define pcodeop __Nop;
 	__Nop();
 }
 # -/90	1001 1110			LD A,XH/YH	A := XH/YH
-:LD A, XH_YH		is XH_YH ... & op0_8=0x9E & A {
+:LD A, XH_YH		is op0_8=0x9E & A & XH_YH {
 	A = XH_YH;
 }
 # -/90	1001 1111			LD A,XL/YL	A := XL/YL
-:LD A, XL_YL		is XL_YL ... & op0_8=0x9F & A {
+:LD A, XL_YL		is op0_8=0x9F & A & XL_YL {
 	A = XL_YL;
 }
 
@@ -882,12 +885,14 @@ OneOpW: X_Y			is           op4_4=0x5 & X_Y		{ export X_Y; }
 # -/90	1010 0111  addr24	LDF (addr24,X/Y),A		Load far (=LD #imm8,A)
 :LDF (Addr24, X_Y), A		is X_Y & op0_8=0xA7 ; Addr24 & A {
 	local addr:$(RAM_W) = &Addr24 + zext(X_Y);
-	load(*:1 addr, A);
+	*:1 addr = A;	# why load not working??
+	flagNZ(A);
 }
 # 92/91	1010 0111  addr16	LDF ([addr16],X/Y),A	16-bit address of 24-bit pointer
 :LDF ([Addr16DW], X_Y_92), A	is X_Y_92 ; op0_8=0xA7 ; Addr16DW & A {
 	local addr:$(RAM_W) = Addr16DW:$(RAM_W) + zext(X_Y_92);
-	load(*:1 addr, A);
+	*:1 addr = A;	# why load not working??
+	flagNZ(A);
 }
 # -		1010 1100  addr24	JPF addr24				PC := addr24 (=JP #imm8)
 :JPF Addr24				is Pre00 & op0_8=0xAC ; Addr24 {
@@ -921,7 +926,8 @@ OneOpW: X_Y			is           op4_4=0x5 & X_Y		{ export X_Y; }
 # 92	1011 1101  addr16	LDF [addr16],A			Operand := A, 16-bit address of 24-bit pointer
 :LDF [Addr16DW], A		is Pre92 & op0_8=0xBD ; Addr16DW & A {
 	local addr:$(RAM_W) = Addr16DW:$(RAM_W);
-	load(*:1 addr, A);
+	*:1 addr = A;	# why load not working??
+	flagNZ(A);
 }
 # -/90	1010 1111  addr24	LDF A,(addr24,X/Y)		Load far (=LDW #imm8,X)
 :LDF A, (Addr24, X_Y)		is op0_8=0xAF ; Addr24 & A & X_Y {
