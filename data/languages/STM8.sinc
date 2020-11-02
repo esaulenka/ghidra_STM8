@@ -526,8 +526,8 @@ BitNo:	"#"^bit1_3	is bit1_3	{ local x:1 = bit1_3; export x; }
 # branch conditions
 Jcond: "A"		is Pre00 & op0_4=0x0	{ local x:1 = 1; export x; }					# Branch always (true)
 Jcond: "F"		is Pre00 & op0_4=0x1	{ local x:1 = 0; export x; }					# Branch never (false)
-Jcond: "UGT"	is Pre00 & op0_4=0x2	{ local x:1 =  CC_C &&  CC_Z; export x; }		# Branch if unsigned greater than (C=0 and Z=0)
-Jcond: "ULE"	is Pre00 & op0_4=0x3	{ local x:1 = !CC_C || !CC_Z; export x; }		# Branch if unsigned less than or equal (C=1 or Z=1)
+Jcond: "UGT"	is Pre00 & op0_4=0x2	{ local x:1 = !CC_C && !CC_Z; export x; }		# Branch if unsigned greater than (C=0 and Z=0)
+Jcond: "ULE"	is Pre00 & op0_4=0x3	{ local x:1 =  CC_C ||  CC_Z; export x; }		# Branch if unsigned less than or equal (C=1 or Z=1)
 Jcond: "NC"		is Pre00 & op0_4=0x4	{ local x:1 = !CC_C; export x; }				# Branch if no carry (C=0)
 Jcond: "C"		is Pre00 & op0_4=0x5	{ local x:1 =  CC_C; export x; }				# Branch if carry (C=1)
 Jcond: "NE"		is Pre00 & op0_4=0x6	{ local x:1 = !CC_Z; export x; }				# Branch if not equal (Z=0)
@@ -536,8 +536,8 @@ Jcond: "NV"		is Pre00 & op0_4=0x8	{ local x:1 = !CC_V; export x; }				# Branch i
 Jcond: "V"		is Pre00 & op0_4=0x9	{ local x:1 =  CC_V; export x; }				# Branch if overflow (V=1)
 Jcond: "PL"		is Pre00 & op0_4=0xA	{ local x:1 = !CC_N; export x; }				# Branch if plus (N=0)
 Jcond: "MI"		is Pre00 & op0_4=0xB	{ local x:1 =  CC_N; export x; }				# Branch if minus (N=1)
-Jcond: "SGT"	is Pre00 & op0_4=0xC	{ local x:1 = !CC_Z && CC_N==CC_V; export x; }	# Branch if signed greater than (S=0 and N=V)
-Jcond: "SLE"	is Pre00 & op0_4=0xD	{ local x:1 =  CC_Z || CC_N!=CC_V; export x; }	# Branch if signed lower or equal (S=1 or N!=V)
+Jcond: "SGT"	is Pre00 & op0_4=0xC	{ local x:1 = !CC_Z && CC_N==CC_V; export x; }	# Branch if signed greater than (Z=0 and N=V)
+Jcond: "SLE"	is Pre00 & op0_4=0xD	{ local x:1 =  CC_Z || CC_N!=CC_V; export x; }	# Branch if signed lower or equal (Z=1 or N!=V)
 Jcond: "SGE"	is Pre00 & op0_4=0xE	{ local x:1 = CC_N==CC_V; export x; }			# Branch if signed greater or equal (N=V)
 Jcond: "SLT"	is Pre00 & op0_4=0xF	{ local x:1 = CC_N!=CC_V; export x; }			# Branch if signed less than (N!=V)
 
