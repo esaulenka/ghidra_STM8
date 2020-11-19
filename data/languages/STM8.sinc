@@ -45,6 +45,10 @@ define register offset=0x20 size=1 [
 	CC_N	# (bit 2) negative
 	CC_Z	# (bit 1) zero
 	CC_C	# (bit 0) carry
+
+	CC		# dummy to give CC the name "CC", used in PUSH and POP
+			# "CC" (with quotes) in the display section of a constructor doesn't work.
+			# This is possibly an error in the SLEIGH parser.
 ];
 
 # context register to track opcodes prefix
@@ -328,7 +332,7 @@ define pcodeop __TrapInterrupt;
 	popw(X_Y);
 }
 # -		1000 0110			POP CC		Pop condition codes from stack
-:POP "CC"			is Pre00 & op0_8=0x86 {
+:POP CC			is Pre00 & op0_8=0x86 & CC {
 	local cc:1; popb(cc); unpack_flags(cc);
 }
 # -		1000 0111			RETF		Pop 24-bit return address from stack to PC
@@ -345,7 +349,7 @@ define pcodeop __TrapInterrupt;
 	pushw(X_Y);
 }
 # -		1000 1010			PUSH CC		Push condition codes onto stack
-:PUSH "CC"			is Pre00 & op0_8=0x8A {
+:PUSH CC			is Pre00 & op0_8=0x8A & CC {
 	local cc:1; pack_flags(cc); pushb(cc);
 }
 # -		1000 1011			BREAK		Stop for debugger if present, or NOP
