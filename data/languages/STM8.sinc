@@ -94,12 +94,19 @@ macro flagNZ(val) {
 macro flagSubstractCV(a,b) {
 	CC_C = a < b;
 	CC_V = sborrow(a, b);
-	# TODO H flag not implemented
 }
 macro flagAddCV(a,b) {
 	CC_C = carry(a,b);
 	CC_V = scarry(a,b);
-	# TODO H flag not implemented
+}
+macro flagAdcHb(a,b,c) {
+	CC_H = ( ( (a&b) | (~(a+b+c)&(a|b)) ) & 0x08 ) != 0;
+}
+macro flagAddHw(a,b) {
+	CC_H = ( ( (a&b) | (~(a+b)&(a|b)) ) & 0x80 ) != 0;
+}
+macro flagSubtractHw(a,b) {
+	CC_H = ( (a&b&(a-b)) | (~a&(b|(a-b))) & 0x80 ) != 0;
 }
 
 macro pack_flags(cc) {
@@ -164,13 +171,36 @@ macro substract(a, b) {
 	a = a - b;
 	flagNZ(a);
 }
+macro substractw(a, b) {
+	flagSubstractCV(a,b);
+	flagSubtractHw(a,b);
+	a = a - b;
+	flagNZ(a);
+}
 macro compare(a, b) {
 	flagSubstractCV(a,b);
 	local x = a - b;
 	flagNZ(x);
 }
-macro add(a, b) {
+macro dec(a) {
+	CC_V = sborrow(a, 1);
+	a = a - 1;
+	flagNZ(a);
+}
+macro inc(a) {
+	CC_V = scarry(a,1);
+	a = a + 1;
+	flagNZ(a);
+}
+macro addb(a, b) {
 	flagAddCV(a,b);
+	flagAdcHb(a,b,0);
+	a = a + b;
+	flagNZ(a);
+}
+macro addw(a, b) {
+	flagAddCV(a,b);
+	flagAddHw(a,b);
 	a = a + b;
 	flagNZ(a);
 }
@@ -185,6 +215,7 @@ macro substractCarry(a, b) {
 	flagNZ(a);
 }
 macro addCarry(a, b) {
+	flagAdcHb(a,b,CC_C);
 	local cc_c = CC_C;
 	CC_C = carry(a,b);
 	CC_V = scarry(a,b);
@@ -470,7 +501,7 @@ define pcodeop __Nop;
 }
 #-		0001 1011	addr8	ADD A,(addr8,SP)	A := A + operand
 :ADD A, StackAddr8		is Pre00 & op0_8=0x1B & A ; StackAddr8 {
-	add(A, StackAddr8);
+	addb(A, StackAddr8);
 }
 # implemented as a common case (see below)
 ##-		0001 1110	addr8	LDW X,(addr8,SP)	X := operand
@@ -571,28 +602,28 @@ IdxOp: StackAddr8W	is op4_4=0xF ; StackAddr8W	{ export StackAddr8W; }
 
 # 72	mode 0000	oper	SUBW X,operand		X := X - operand (prefer opcode 1D for SUBW X,#imm16)
 :SUBW X, IdxOp		is Pre72 & op0_4=0x0 ... & IdxOp & X {
-	substract(X, IdxOp);
+	substractw(X, IdxOp);
 }
 #-		0001 1101	imm16	SUBW X,#imm16		X := X - immediate (=CALL (addr8,SP))
 :SUBW X, val16u		is Pre00 & op0_8=0x1D & X ; val16u {
-	substract(X, val16u);
+	substractw(X, val16u);
 }
 # 72	mode 0010	oper	SUBW Y,operand		Y := Y - operand
 :SUBW Y, IdxOp		is Pre72 & op0_4=0x2 ... & IdxOp & Y {
-	substract(Y, IdxOp);
+	substractw(Y, IdxOp);
 }
 
 # 72	mode 1001	oper	ADDW Y,operand		Y := Y + operand
 :ADDW Y, IdxOp		is Pre72 & op0_4=0x9 ... & IdxOp & Y {
-	add(Y, IdxOp);
+	addw(Y, IdxOp);
 }
 # 72	mode 1011	oper	ADDW X,operand		X := X + operand (prefer opcode 1C for ADDW X,#imm16)
 :ADDW X, IdxOp		is Pre72 & op0_4=0xB ... & IdxOp & X {
-	add(X, IdxOp);
+	addw(X, IdxOp);
 }
 #-		0001 1100	imm16	ADDW X,#imm16		X := X + immediate (=JP (addr8,SP))
 :ADDW X, val16u		is Pre00 & op0_8=0x1C & X ; val16u {
-	add(X, val16u);
+	addw(X, val16u);
 }
 
 
@@ -822,23 +853,18 @@ OneOpW: X_Y			is           op4_4=0x5 & X_Y		{ export X_Y; }
 
 # prefix	0 mode 1010	operand		DEC operand	Decrement; N and Z set, carry unaffected
 :DEC OneOp		is op0_4=0xA ... & OneOp {
-	# same as SUB, but without carry
-	CC_V = sborrow(OneOp, 1);
-	OneOp = OneOp - 1;
-	flagNZ(OneOp);
+	dec(OneOp);
 }
 :DECW OneOpW	is op0_4=0xA & OneOpW {
-	CC_V = sborrow(OneOpW, 1);
-	OneOpW = OneOpW - 1;
-	flagNZ(OneOpW);
+	dec(OneOpW);
 }
 
 # prefix	0 mode 1100	operand		INC operand	Increment; N and Z set, carry unaffected
 :INC OneOp		is op0_4=0xC ... & OneOp {
-	add(OneOp, 1);
+	inc(OneOp);
 }
 :INCW OneOpW	is op0_4=0xC & OneOpW {
-	add(OneOpW, 1);
+	inc(OneOpW);
 }
 
 # prefix	0 mode 1101	operand		TNZ operand	Test non-zero: set N and Z based on operand value
@@ -1012,7 +1038,7 @@ TwoOp:	(X_Y)		is op4_4=0xF & X_Y						{ export *:1 X_Y; }
 }
 # prefix	mode 1011	operand		ADD A,operand	A := A + operand
 :ADD A, TwoOp		is op0_4=0xB ... & TwoOp & A {
-	add(A, TwoOp);
+	addb(A, TwoOp);
 }
 # prefix	mode 1100	operand		JP operand		Low 16 bits of PC := operand, unconditional jump (modes 2 JP #imm8 and 3 JP addr8 reassigned, see below)
 :JP TwoOp			is op0_4=0xC ... & TwoOp {
