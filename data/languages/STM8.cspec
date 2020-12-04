@@ -39,13 +39,7 @@
 			<killedbycall>
 				<register name="A"/>
 				<register name="X"/>
-				<register name="CC_V"/>
-				<register name="CC_I1"/>
-				<register name="CC_H"/>
-				<register name="CC_I0"/>
-				<register name="CC_N"/>
-				<register name="CC_Z"/>
-				<register name="CC_C"/>
+				<register name="CC"/>
 			</killedbycall>
 		</prototype>
 	</default_proto>
