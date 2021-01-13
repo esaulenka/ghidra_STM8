@@ -348,7 +348,8 @@ define pcodeop __DebugBreak;
 :CALLF [Addr16DW]	is Pre92 & op0_8=0x8D ; Addr16DW {
 	local pc:3 = inst_next;
 	pushdw(pc);
-	call Addr16DW;
+	local jump_addr = *:1 (Addr16DW : $(RAM_W));
+	call [jump_addr];
 }
 # -		1000 1110			HALT		Halt processor and clocks
 define pcodeop __Halt;
