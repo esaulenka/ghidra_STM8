@@ -21,7 +21,7 @@ define space register type=register_space size=2;
 #	General Registers
 #
 define register offset=0x00 size=1 [
-	_  A 	# condition flags, accumulator
+	CC A 	# condition flags, accumulator
 	XH XL	# X index
 	YH YL	# Y index
 ];
@@ -36,9 +36,7 @@ define register offset=0x08 size=$(RAM_W) [
 define register offset=0x10 size=3 [
 	PC		# program counter
 ];
-# condition code register
-define register offset=0x20 size=1 [ CC ];
-
+# condition code fields
 @define CC_V	"CC[7,1]"	# (bit 7) overflow
 @define CC_I1	"CC[5,1]"	# (bit 5) interrupt mask level 1
 @define CC_H	"CC[4,1]"	# (bit 4) half carry bit
