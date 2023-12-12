@@ -400,14 +400,18 @@ define pcodeop __WaitForEvent;
 	$(CC_C) = 1;
 }
 # -		1001 1010			RIM			Reset interrupt mask (enable interrupts)
+define pcodeop __EnableInterrupt;  
 :RIM				is Pre00 & op0_8=0x9A {
 	$(CC_I1) = 1;
 	$(CC_I0) = 0;
+	__EnableInterrupt();
 }
 # -		1001 1011			SIM			Set interrupt mask (disable interrupts)
+define pcodeop __DisableInterrupt;  
 :SIM				is Pre00 & op0_8=0x9B {
 	$(CC_I1) = 1;
 	$(CC_I0) = 1;
+	__DisableInterrupt();
 }
 # -		1001 1100			RVF			Reset (clear) overflow flag
 :RVF				is Pre00 & op0_8=0x9C {
