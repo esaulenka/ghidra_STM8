@@ -1,0 +1,16 @@
+name: test
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+
+jobs:
+  ubuntu:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    - name: setup for tests, including GHIDRA_HOME
+      run: cd test; ./setup_tests.sh >> "$GITHUB_ENV"
+    - name: run tests
+      run: cd test; ./run_tests.sh

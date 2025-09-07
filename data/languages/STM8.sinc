@@ -1026,11 +1026,13 @@ TwoOp:	(X_Y)		is op4_4=0xF & X_Y						{ export *:1 X_Y; }
 	addb(A, TwoOp);
 }
 # prefix	mode 1100	operand		JP operand		Low 16 bits of PC := operand, unconditional jump (modes 2 JP #imm8 and 3 JP addr8 reassigned, see below)
-:JP TwoOp			is op0_4=0xC ... & TwoOp {
+# opcode 0xFC, JP (X), does not work this way and is handled below as :JP TwoOpW.
+:JP TwoOp			is (op0_4=0xC & op4_4>0xA & op4_4<0xF) ... & TwoOp {
 	goto TwoOp;
 }
 # prefix	mode 1101	operand		CALL operand	Push 16-bit PC, low 16 bits of PC := operand (modes 2 CALL #imm8 and 3 CALL addr8 reassigned, see below)
-:CALL TwoOp		is op0_4=0xD ... & TwoOp {
+# opcode 0xFD, CALL (X), does not work this way and is handled below as :CALL TwoOpW.
+:CALL TwoOp		is (op0_4=0xD & op4_4>0xA & op4_4<0xF) ... & TwoOp {
 	local pc:2 = inst_next;
 	pushw(pc);
 	call TwoOp;
@@ -1067,12 +1069,21 @@ TwoOpW: (val8u, X_Y)	is op4_4=0xE & X_Y ; val8u			{ local addr:$(RAM_W) = zext(X
 # -/90	1111 opcode			OP (X/Y)			Indexed with no offset
 TwoOpW: (X_Y)			is op4_4=0xF & X_Y					{ export *:2 X_Y; }
 
-
 X_Y_LDW:	X			is (ctx_prefix=0x00 | ctx_prefix=0x92 | ctx_prefix=0x72) & X	{ export X; }
 X_Y_LDW:	Y			is (ctx_prefix=0x90 | ctx_prefix=0x91)					 & Y	{ export Y; }
 
 Y_X_LDW:	Y			is (ctx_prefix=0x00 | ctx_prefix=0x92 | ctx_prefix=0x72) & Y	{ export Y; }
 Y_X_LDW:	X			is (ctx_prefix=0x90 | ctx_prefix=0x91)					 & X	{ export X; }
+
+
+:JP X_Y			is (op0_4=0xC & op4_4=0xF) & X_Y {
+	goto [X_Y];
+}
+:CALL X_Y		is (op0_4=0xD & op4_4=0xF) & X_Y {
+	local pc:2 = inst_next;
+	pushw(pc);
+	call [X_Y];
+}
 
 
 # prefix	mode 0011	operand		CPW X/Y,operand	Compare X/Y - operand (16 bit); compare Y/X if operand mode is indexed by X/Y (opcodes D3, E3, F3)
